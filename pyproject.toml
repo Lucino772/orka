@@ -1,0 +1,77 @@
+[project]
+name = "orka"
+version = "1.0.0"
+requires-python = "==3.12.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "ruff>=0.15.10",
+]
+
+# NOTE: See configuration here, https://microsoft.github.io/pyright/#/configuration
+[tool.pyright]
+include = []
+exclude = [
+    "**/.*",
+    ".venv",
+    "**/node_modules",
+    "**/__pycache__",
+]
+
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 80
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 80
+
+# NOTE: See all the rules here: https://docs.astral.sh/ruff/rules/
+[tool.ruff.lint]
+extend-select = [
+    "I",
+    "RUF022",
+    "RUF023",
+    "W291",
+    "W292",
+    "W293",
+    "W505",
+    "W605",
+    "TC",
+    "FA",
+    "C4",
+    "PYI",
+    "COM818",
+]
+extend-ignore = [
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/scripts/*" = [
+    "INP001",
+    "T201",
+]
+"**/tests/**/*" = [
+    "PLC1901",
+    "PLR2004",
+    "PLR6301",
+    "S",
+    "TID252",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["orka"]

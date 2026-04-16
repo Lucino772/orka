@@ -1,0 +1,21 @@
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tools]
+node = "20.20.0"
+pnpm = "10.33.0"
+python = "3.12.12"
+uv = "0.11.7"
+
+[settings]
+python.uv_venv_auto = true
+
+# NOTE: Important for quoting to work on Windows
+windows_default_inline_shell_args = "powershell -Command"
+
+[tasks.sync-deps]
+description = "Install and sync Python and Node.js dependencies for the workspace."
+run = [
+    "uv sync --all-packages --all-extras --all-groups",
+    "pnpm install",
+]
