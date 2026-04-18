@@ -9,50 +9,274 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedRootWorkspaceIdRouteImport } from './routes/_authenticated/_root.$workspaceId'
+import { Route as AuthenticatedRootWorkspaceIdIndexRouteImport } from './routes/_authenticated/_root.$workspaceId.index'
+import { Route as AuthenticatedRootWorkspaceIdTemplatesRouteImport } from './routes/_authenticated/_root.$workspaceId.templates'
+import { Route as AuthenticatedRootWorkspaceIdSettingsRouteImport } from './routes/_authenticated/_root.$workspaceId.settings'
+import { Route as AuthenticatedRootWorkspaceIdServicesRouteImport } from './routes/_authenticated/_root.$workspaceId.services'
+import { Route as AuthenticatedRootWorkspaceIdNodesRouteImport } from './routes/_authenticated/_root.$workspaceId.nodes'
+import { Route as AuthenticatedRootWorkspaceIdEndpointsRouteImport } from './routes/_authenticated/_root.$workspaceId.endpoints'
+import { Route as AuthenticatedRootWorkspaceIdBuildersRouteImport } from './routes/_authenticated/_root.$workspaceId.builders'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedRootWorkspaceIdRoute =
+  AuthenticatedRootWorkspaceIdRouteImport.update({
+    id: '/_root/$workspaceId',
+    path: '/$workspaceId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdIndexRoute =
+  AuthenticatedRootWorkspaceIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdTemplatesRoute =
+  AuthenticatedRootWorkspaceIdTemplatesRouteImport.update({
+    id: '/templates',
+    path: '/templates',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdSettingsRoute =
+  AuthenticatedRootWorkspaceIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdServicesRoute =
+  AuthenticatedRootWorkspaceIdServicesRouteImport.update({
+    id: '/services',
+    path: '/services',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdNodesRoute =
+  AuthenticatedRootWorkspaceIdNodesRouteImport.update({
+    id: '/nodes',
+    path: '/nodes',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdEndpointsRoute =
+  AuthenticatedRootWorkspaceIdEndpointsRouteImport.update({
+    id: '/endpoints',
+    path: '/endpoints',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
+const AuthenticatedRootWorkspaceIdBuildersRoute =
+  AuthenticatedRootWorkspaceIdBuildersRouteImport.update({
+    id: '/builders',
+    path: '/builders',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/$workspaceId': typeof AuthenticatedRootWorkspaceIdRouteWithChildren
+  '/$workspaceId/builders': typeof AuthenticatedRootWorkspaceIdBuildersRoute
+  '/$workspaceId/endpoints': typeof AuthenticatedRootWorkspaceIdEndpointsRoute
+  '/$workspaceId/nodes': typeof AuthenticatedRootWorkspaceIdNodesRoute
+  '/$workspaceId/services': typeof AuthenticatedRootWorkspaceIdServicesRoute
+  '/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
+  '/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
+  '/$workspaceId/': typeof AuthenticatedRootWorkspaceIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/$workspaceId/builders': typeof AuthenticatedRootWorkspaceIdBuildersRoute
+  '/$workspaceId/endpoints': typeof AuthenticatedRootWorkspaceIdEndpointsRoute
+  '/$workspaceId/nodes': typeof AuthenticatedRootWorkspaceIdNodesRoute
+  '/$workspaceId/services': typeof AuthenticatedRootWorkspaceIdServicesRoute
+  '/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
+  '/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
+  '/$workspaceId': typeof AuthenticatedRootWorkspaceIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/_root/$workspaceId': typeof AuthenticatedRootWorkspaceIdRouteWithChildren
+  '/_authenticated/_root/$workspaceId/builders': typeof AuthenticatedRootWorkspaceIdBuildersRoute
+  '/_authenticated/_root/$workspaceId/endpoints': typeof AuthenticatedRootWorkspaceIdEndpointsRoute
+  '/_authenticated/_root/$workspaceId/nodes': typeof AuthenticatedRootWorkspaceIdNodesRoute
+  '/_authenticated/_root/$workspaceId/services': typeof AuthenticatedRootWorkspaceIdServicesRoute
+  '/_authenticated/_root/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
+  '/_authenticated/_root/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
+  '/_authenticated/_root/$workspaceId/': typeof AuthenticatedRootWorkspaceIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/$workspaceId'
+    | '/$workspaceId/builders'
+    | '/$workspaceId/endpoints'
+    | '/$workspaceId/nodes'
+    | '/$workspaceId/services'
+    | '/$workspaceId/settings'
+    | '/$workspaceId/templates'
+    | '/$workspaceId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/$workspaceId/builders'
+    | '/$workspaceId/endpoints'
+    | '/$workspaceId/nodes'
+    | '/$workspaceId/services'
+    | '/$workspaceId/settings'
+    | '/$workspaceId/templates'
+    | '/$workspaceId'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/_authenticated/'
+    | '/_authenticated/_root/$workspaceId'
+    | '/_authenticated/_root/$workspaceId/builders'
+    | '/_authenticated/_root/$workspaceId/endpoints'
+    | '/_authenticated/_root/$workspaceId/nodes'
+    | '/_authenticated/_root/$workspaceId/services'
+    | '/_authenticated/_root/$workspaceId/settings'
+    | '/_authenticated/_root/$workspaceId/templates'
+    | '/_authenticated/_root/$workspaceId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/_root/$workspaceId': {
+      id: '/_authenticated/_root/$workspaceId'
+      path: '/$workspaceId'
+      fullPath: '/$workspaceId'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/_root/$workspaceId/': {
+      id: '/_authenticated/_root/$workspaceId/'
+      path: '/'
+      fullPath: '/$workspaceId/'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/templates': {
+      id: '/_authenticated/_root/$workspaceId/templates'
+      path: '/templates'
+      fullPath: '/$workspaceId/templates'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/settings': {
+      id: '/_authenticated/_root/$workspaceId/settings'
+      path: '/settings'
+      fullPath: '/$workspaceId/settings'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdSettingsRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/services': {
+      id: '/_authenticated/_root/$workspaceId/services'
+      path: '/services'
+      fullPath: '/$workspaceId/services'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdServicesRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/nodes': {
+      id: '/_authenticated/_root/$workspaceId/nodes'
+      path: '/nodes'
+      fullPath: '/$workspaceId/nodes'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdNodesRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/endpoints': {
+      id: '/_authenticated/_root/$workspaceId/endpoints'
+      path: '/endpoints'
+      fullPath: '/$workspaceId/endpoints'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdEndpointsRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
+    '/_authenticated/_root/$workspaceId/builders': {
+      id: '/_authenticated/_root/$workspaceId/builders'
+      path: '/builders'
+      fullPath: '/$workspaceId/builders'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdBuildersRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
     }
   }
 }
 
+interface AuthenticatedRootWorkspaceIdRouteChildren {
+  AuthenticatedRootWorkspaceIdBuildersRoute: typeof AuthenticatedRootWorkspaceIdBuildersRoute
+  AuthenticatedRootWorkspaceIdEndpointsRoute: typeof AuthenticatedRootWorkspaceIdEndpointsRoute
+  AuthenticatedRootWorkspaceIdNodesRoute: typeof AuthenticatedRootWorkspaceIdNodesRoute
+  AuthenticatedRootWorkspaceIdServicesRoute: typeof AuthenticatedRootWorkspaceIdServicesRoute
+  AuthenticatedRootWorkspaceIdSettingsRoute: typeof AuthenticatedRootWorkspaceIdSettingsRoute
+  AuthenticatedRootWorkspaceIdTemplatesRoute: typeof AuthenticatedRootWorkspaceIdTemplatesRoute
+  AuthenticatedRootWorkspaceIdIndexRoute: typeof AuthenticatedRootWorkspaceIdIndexRoute
+}
+
+const AuthenticatedRootWorkspaceIdRouteChildren: AuthenticatedRootWorkspaceIdRouteChildren =
+  {
+    AuthenticatedRootWorkspaceIdBuildersRoute:
+      AuthenticatedRootWorkspaceIdBuildersRoute,
+    AuthenticatedRootWorkspaceIdEndpointsRoute:
+      AuthenticatedRootWorkspaceIdEndpointsRoute,
+    AuthenticatedRootWorkspaceIdNodesRoute:
+      AuthenticatedRootWorkspaceIdNodesRoute,
+    AuthenticatedRootWorkspaceIdServicesRoute:
+      AuthenticatedRootWorkspaceIdServicesRoute,
+    AuthenticatedRootWorkspaceIdSettingsRoute:
+      AuthenticatedRootWorkspaceIdSettingsRoute,
+    AuthenticatedRootWorkspaceIdTemplatesRoute:
+      AuthenticatedRootWorkspaceIdTemplatesRoute,
+    AuthenticatedRootWorkspaceIdIndexRoute:
+      AuthenticatedRootWorkspaceIdIndexRoute,
+  }
+
+const AuthenticatedRootWorkspaceIdRouteWithChildren =
+  AuthenticatedRootWorkspaceIdRoute._addFileChildren(
+    AuthenticatedRootWorkspaceIdRouteChildren,
+  )
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedRootWorkspaceIdRoute: typeof AuthenticatedRootWorkspaceIdRouteWithChildren
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedRootWorkspaceIdRoute:
+    AuthenticatedRootWorkspaceIdRouteWithChildren,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
