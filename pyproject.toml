@@ -74,9 +74,10 @@ extend-ignore = [
 ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
-known-first-party = ["orka_api"]
+known-first-party = ["orka_api", "orka_db"]
 
 [tool.uv.workspace]
 members = [
     "apps/api",
+    "packages/python/orka-db",
 ]
