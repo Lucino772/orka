@@ -27,6 +27,12 @@ export default defineConfig({
                 changeOrigin: false,
                 xfwd: true,
             },
+            "/ws": {
+                target: "http://localhost:5174",
+                changeOrigin: false,
+                xfwd: true,
+                ws: true,
+            },
         },
     },
 });

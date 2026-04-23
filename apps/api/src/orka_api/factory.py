@@ -4,6 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, TypedDict
 
+from socketio import ASGIApp, AsyncServer
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -40,10 +41,13 @@ def index(request: Request):
 
 
 def create_app():
-    database_url = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/orka").strip()
+    database_url = os.environ.get(
+        "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/orka"
+    ).strip()
     if not database_url:
         raise RuntimeError("DATABASE_URL must be set before creating the API app.")
 
+    sio_server = AsyncServer(async_mode="asgi")
     workspace_api = WorkspaceApi()
     app = Starlette(
         debug=True,
@@ -54,9 +58,12 @@ def create_app():
             Exception: exception_handler,
         },
         routes=[
-            Mount("/api", routes=[Route("/", index), *workspace_api.routes()]),
+            Mount(
+                "/api",
+                routes=[Route("/", index), *workspace_api.routes()],
+            ),
+            Mount("/ws", app=ASGIApp(sio_server, socketio_path="ws")),
         ],
         middleware=[],
     )
-
     return app
