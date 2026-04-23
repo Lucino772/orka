@@ -348,7 +348,7 @@ function WorkspaceAvatar({
 }) {
     return (
         <div
-            className={`flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary font-semibold text-sidebar-primary-foreground ${className ?? ""}`}
+            className={`bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md font-semibold ${className ?? ""}`}
             aria-hidden="true"
         >
             {getWorkspaceInitials(workspace.name)}

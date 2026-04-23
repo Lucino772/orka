@@ -4,14 +4,36 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { ApiClientError } from "@/api/client";
 import {
     slugifyWorkspaceName,
-    workspacesApi,
     workspaceNameSchema,
+    workspacesApi,
 } from "@/api/workspaces";
-import { ApiClientError } from "@/api/client";
 import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import {
+    Field,
+    FieldDescription,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+
+const workspaceNameSuggestions = [
+    "Production",
+    "Development",
+    "Staging",
+    "Sandbox",
+] as const;
 
 export const Route = createFileRoute("/_authenticated/")({
     async loader({ context }) {
@@ -86,121 +108,165 @@ function RouteComponent() {
     });
 
     return (
-        <section className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.08),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,1))] px-6 py-16">
-            <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-                <div className="space-y-5">
-                    <div className="inline-flex rounded-full border border-border bg-background/80 px-3 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground shadow-sm backdrop-blur">
-                        Workspace Setup
-                    </div>
-
-                    <div className="space-y-3">
-                        <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-                            Create the first workspace for your platform.
-                        </h1>
-                        <p className="max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                            Start with a name your team recognizes. We&apos;ll use it to
-                            create the first workspace and route you straight into the
-                            dashboard.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur sm:p-8">
-                    <form
-                        className="space-y-6"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void form.handleSubmit();
-                        }}
+        <section className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#f7f7f4_100%)] px-6 py-8 sm:px-8 sm:py-10">
+            <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl items-center justify-center sm:min-h-[calc(100vh-5rem)]">
+                <form
+                    className="w-full max-w-xl"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void form.handleSubmit();
+                    }}
+                >
+                    <Card
+                        className="bg-background/95 ring-border/80 shadow-[0_12px_32px_rgba(15,23,42,0.05)]"
+                        size="sm"
                     >
-                        <div className="space-y-1">
-                            <h2 className="text-xl font-semibold text-foreground">
-                                Name your workspace
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                                This can be changed later if needed.
-                            </p>
-                        </div>
+                        <CardHeader className="gap-2 px-6 pt-2 sm:px-7">
+                            <CardTitle className="text-foreground text-2xl font-semibold tracking-tight sm:text-[2rem]">
+                                Create your first workspace
+                            </CardTitle>
+                            <CardDescription className="text-muted-foreground max-w-md text-sm leading-6">
+                                Start by naming the workspace. You can rename it later.
+                            </CardDescription>
+                        </CardHeader>
 
-                        <form.Field
-                            name="name"
-                            validators={{
-                                onBlur: ({ value }) => getNameError(value),
-                                onChange: ({ value }) => getNameError(value),
-                            }}
-                        >
-                            {(field) => {
-                                const slug = slugifyWorkspaceName(field.state.value);
-                                const fieldError =
-                                    field.state.meta.isTouched ||
-                                    form.state.submissionAttempts > 0
-                                        ? field.state.meta.errors[0]
-                                        : undefined;
-
-                                return (
-                                    <div className="space-y-3">
-                                        <label
-                                            htmlFor={field.name}
-                                            className="block text-sm font-medium text-foreground"
-                                        >
-                                            Workspace name
-                                        </label>
-
-                                        <Input
-                                            id={field.name}
-                                            name={field.name}
-                                            value={field.state.value}
-                                            placeholder="Acme"
-                                            aria-invalid={fieldError ? true : undefined}
-                                            onBlur={field.handleBlur}
-                                            onChange={(event) => {
-                                                setSubmitError(null);
-                                                field.handleChange(event.target.value);
-                                            }}
-                                        />
-
-                                        <div className="rounded-2xl border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                                            URL slug preview:{" "}
-                                            <span className="font-medium text-foreground">
-                                                {slug}
-                                            </span>
-                                        </div>
-
-                                        {fieldError ? (
-                                            <p className="text-sm text-destructive">
-                                                {String(fieldError)}
-                                            </p>
-                                        ) : null}
-                                    </div>
-                                );
-                            }}
-                        </form.Field>
-
-                        {submitError ? (
-                            <div className="rounded-2xl border border-destructive/20 bg-destructive/8 px-3 py-2 text-sm text-destructive">
-                                {submitError}
-                            </div>
-                        ) : null}
-
-                        <form.Subscribe
-                            selector={(state) => [state.canSubmit, state.isSubmitting]}
-                        >
-                            {([canSubmit, isSubmitting]) => (
-                                <Button
-                                    type="submit"
-                                    size="lg"
-                                    className="w-full"
-                                    disabled={!canSubmit || isSubmitting}
+                        <CardContent className="border-border/70 border-t px-6 py-1 pt-6 sm:px-7">
+                            <FieldGroup className="gap-5">
+                                <form.Field
+                                    name="name"
+                                    validators={{
+                                        onBlur: ({ value }) => getNameError(value),
+                                        onChange: ({ value }) => getNameError(value),
+                                    }}
                                 >
-                                    {isSubmitting
-                                        ? "Creating workspace..."
-                                        : "Create workspace"}
-                                </Button>
-                            )}
-                        </form.Subscribe>
-                    </form>
-                </div>
+                                    {(field) => {
+                                        const slug = slugifyWorkspaceName(
+                                            field.state.value
+                                        );
+                                        const fieldError =
+                                            field.state.meta.isTouched ||
+                                            form.state.submissionAttempts > 0
+                                                ? field.state.meta.errors[0]
+                                                : undefined;
+
+                                        return (
+                                            <Field
+                                                className="gap-2"
+                                                data-invalid={
+                                                    fieldError ? true : undefined
+                                                }
+                                            >
+                                                <FieldLabel htmlFor={field.name}>
+                                                    Workspace name
+                                                </FieldLabel>
+
+                                                <Input
+                                                    id={field.name}
+                                                    name={field.name}
+                                                    value={field.state.value}
+                                                    placeholder="Acme"
+                                                    className="h-11 px-4 text-sm md:text-sm"
+                                                    aria-invalid={
+                                                        fieldError ? true : undefined
+                                                    }
+                                                    onBlur={field.handleBlur}
+                                                    onChange={(event) => {
+                                                        setSubmitError(null);
+                                                        field.handleChange(
+                                                            event.target.value
+                                                        );
+                                                    }}
+                                                />
+
+                                                <div className="space-y-2 pt-1 pb-2">
+                                                    <FieldDescription className="text-xs">
+                                                        Or choose from predefined
+                                                        options
+                                                    </FieldDescription>
+
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {workspaceNameSuggestions.map(
+                                                            (suggestion) => (
+                                                                <Button
+                                                                    key={suggestion}
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="xs"
+                                                                    onClick={() => {
+                                                                        setSubmitError(
+                                                                            null
+                                                                        );
+                                                                        field.handleChange(
+                                                                            suggestion
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    {suggestion}
+                                                                </Button>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <FieldDescription className="text-xs">
+                                                    Slug{" "}
+                                                    <span className="text-muted-foreground/70 px-1">
+                                                        ·
+                                                    </span>
+                                                    <span className="text-foreground/75">
+                                                        {slug || "acme"}
+                                                    </span>
+                                                </FieldDescription>
+
+                                                <FieldError>
+                                                    {fieldError
+                                                        ? String(fieldError)
+                                                        : null}
+                                                </FieldError>
+                                            </Field>
+                                        );
+                                    }}
+                                </form.Field>
+                            </FieldGroup>
+
+                            {submitError ? (
+                                <div className="border-destructive/20 bg-destructive/8 text-destructive mt-5 rounded-md border px-4 py-3 text-sm">
+                                    {submitError}
+                                </div>
+                            ) : null}
+                        </CardContent>
+
+                        <CardFooter className="border-border/70 justify-between gap-3 border-t px-6 pb-2 sm:px-7">
+                            <p className="text-muted-foreground text-xs leading-5">
+                                {`You'll enter the workspace immediately after creation.`}
+                            </p>
+
+                            <form.Subscribe
+                                selector={(state) => [
+                                    state.values.name.trim().length > 0,
+                                    state.canSubmit,
+                                    state.isSubmitting,
+                                ]}
+                            >
+                                {([hasName, canSubmit, isSubmitting]) => (
+                                    <Button
+                                        type="submit"
+                                        size="lg"
+                                        className="h-11 px-5"
+                                        disabled={
+                                            !hasName || !canSubmit || isSubmitting
+                                        }
+                                    >
+                                        {isSubmitting
+                                            ? "Creating workspace..."
+                                            : "Create workspace"}
+                                    </Button>
+                                )}
+                            </form.Subscribe>
+                        </CardFooter>
+                    </Card>
+                </form>
             </div>
         </section>
     );
