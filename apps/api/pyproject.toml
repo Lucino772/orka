@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "orka-api"
 requires-python = ">=3.12.12"
 dependencies = [
+    "asyncpg>=0.31.0",
     "hypercorn>=0.18.0",
     "orka-db",
     "pydantic>=2.11.10",
