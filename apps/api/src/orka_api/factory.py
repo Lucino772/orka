@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-from orka_api.errors import exception_handler
+from orka_api.errors import ApiHTTPException, exception_handler
 from orka_api.workspaces import WorkspaceApi
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ def index(request: Request):
 
 
 def create_app():
-    database_url = os.environ.get("DATABASE_URL", "").strip()
+    database_url = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/orka").strip()
     if not database_url:
         raise RuntimeError("DATABASE_URL must be set before creating the API app.")
 
@@ -49,6 +49,7 @@ def create_app():
         debug=True,
         lifespan=_make_lifespan(database_url),
         exception_handlers={
+            ApiHTTPException: exception_handler,
             HTTPException: exception_handler,
             Exception: exception_handler,
         },

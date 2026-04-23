@@ -152,8 +152,8 @@ class WorkspaceApi:
                 workspace = Workspace.model_validate(
                     (await connection.execute(statement)).mappings().one()
                 )
-        except NoResultFound:
-            raise ApiHTTPException(404, title="Workspace not found")
+        except NoResultFound as exc:
+            raise ApiHTTPException(404, title="Workspace not found") from exc
         else:
             return JSONResponse(workspace.model_dump(mode="json"))
 
