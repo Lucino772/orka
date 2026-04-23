@@ -42,44 +42,53 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
-
-const workspaces = [
-    {
-        id: "acme-inc",
-        name: "Acme Inc",
-        image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%233b82f6'/><text x='50%25' y='54%25' text-anchor='middle' font-family='Arial' font-size='24' fill='white'>AI</text></svg>",
-    },
-    {
-        id: "acme-corp",
-        name: "Acme Corp.",
-        image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%2314b8a6'/><text x='50%25' y='54%25' text-anchor='middle' font-family='Arial' font-size='24' fill='white'>AC</text></svg>",
-    },
-    {
-        id: "evil-corp",
-        name: "Evil Corp.",
-        image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='%23f97316'/><text x='50%25' y='54%25' text-anchor='middle' font-family='Arial' font-size='24' fill='white'>EC</text></svg>",
-    },
-] as const;
+import { workspacesApi, type Workspace } from "@/api/workspaces";
+import { ApiClientError } from "@/api/client";
 
 export const Route = createFileRoute("/_authenticated/_root/$workspaceId")({
-    beforeLoad: ({ params }) => {
-        if (!workspaces.some((workspace) => workspace.id === params.workspaceId)) {
-            throw notFound();
+    async loader({ context, params }) {
+        try {
+            await Promise.all([
+                context.queryClient.ensureQueryData(
+                    workspacesApi.detail.getFetchOptions(params.workspaceId)
+                ),
+                context.queryClient.ensureQueryData(
+                    workspacesApi.list.getFetchOptions()
+                ),
+            ]);
+        } catch (error) {
+            if (error instanceof ApiClientError && error.status === 404) {
+                throw notFound();
+            }
+
+            throw error;
         }
     },
     component: RouteComponent,
 });
 
+function getWorkspaceInitials(name: Workspace["name"]) {
+    const initials = name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
+
+    return initials || "WS";
+}
+
 function RouteComponent() {
     const navigate = useNavigate();
     const { workspaceId } = Route.useParams();
+    const { data: selectedWorkspace } = workspacesApi.detail.useSuspenseQuery({
+        variables: workspaceId,
+    });
+    const { data: workspaces } = workspacesApi.list.useSuspenseQuery();
     const pathname = useRouterState({
         select: (state) => state.location.pathname,
     });
     const activeWorkspace = workspaceId;
-    const selectedWorkspace =
-        workspaces.find((workspace) => workspace.id === activeWorkspace) ??
-        workspaces[0];
 
     return (
         <SidebarProvider>
@@ -93,10 +102,8 @@ function RouteComponent() {
                                         size="lg"
                                         className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                     >
-                                        <img
-                                            src={selectedWorkspace.image}
-                                            alt={`${selectedWorkspace.name} logo`}
-                                            className="size-8 rounded-md object-cover"
+                                        <WorkspaceAvatar
+                                            workspace={selectedWorkspace}
                                         />
 
                                         <span className="grid flex-1 text-left leading-tight">
@@ -135,10 +142,9 @@ function RouteComponent() {
                                                 key={workspace.id}
                                                 value={workspace.id}
                                             >
-                                                <img
-                                                    src={workspace.image}
-                                                    alt={`${workspace.name} logo`}
-                                                    className="size-5 rounded-md object-cover"
+                                                <WorkspaceAvatar
+                                                    workspace={workspace}
+                                                    className="size-5 rounded-md text-[0.625rem]"
                                                 />
                                                 <span>{workspace.name}</span>
                                             </DropdownMenuRadioItem>
@@ -330,5 +336,22 @@ function RouteComponent() {
                 </main>
             </SidebarInset>
         </SidebarProvider>
+    );
+}
+
+function WorkspaceAvatar({
+    workspace,
+    className,
+}: {
+    workspace: Workspace;
+    className?: string;
+}) {
+    return (
+        <div
+            className={`flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary font-semibold text-sidebar-primary-foreground ${className ?? ""}`}
+            aria-hidden="true"
+        >
+            {getWorkspaceInitials(workspace.name)}
+        </div>
     );
 }
