@@ -80,4 +80,5 @@ known-first-party = ["orka_api", "orka_db"]
 members = [
     "apps/api",
     "packages/python/orka-db",
+    "apps/agent",
 ]
