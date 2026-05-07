@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "bmad-review-adversarial-general": {
+      "source": "bmad-code-org/bmad-method",
+      "sourceType": "github",
+      "skillPath": "src/core-skills/bmad-review-adversarial-general/SKILL.md",
+      "computedHash": "345db21542638f55508a4dfe682740004cfc056c10b892f950202d8a4f31c0c8"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
