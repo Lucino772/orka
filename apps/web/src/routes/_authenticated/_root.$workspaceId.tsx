@@ -233,7 +233,9 @@ function RouteComponent() {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={pathname === `/${workspaceId}/nodes`}
+                                        isActive={pathname.startsWith(
+                                            `/${workspaceId}/nodes`
+                                        )}
                                     >
                                         <Link
                                             to="/$workspaceId/nodes"
@@ -330,9 +332,13 @@ function RouteComponent() {
             </Sidebar>
 
             <SidebarInset>
-                <main>
-                    <SidebarTrigger />
-                    <Outlet />
+                <main className="flex h-svh min-h-0 min-w-0 flex-col overflow-hidden">
+                    <div className="border-border/70 bg-background/80 sticky top-0 z-30 flex h-14 items-center border-b px-4 backdrop-blur-sm sm:px-6">
+                        <SidebarTrigger />
+                    </div>
+                    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                        <Outlet />
+                    </div>
                 </main>
             </SidebarInset>
         </SidebarProvider>

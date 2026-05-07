@@ -19,6 +19,7 @@ import { Route as AuthenticatedRootWorkspaceIdServicesRouteImport } from './rout
 import { Route as AuthenticatedRootWorkspaceIdNodesRouteImport } from './routes/_authenticated/_root.$workspaceId.nodes'
 import { Route as AuthenticatedRootWorkspaceIdEndpointsRouteImport } from './routes/_authenticated/_root.$workspaceId.endpoints'
 import { Route as AuthenticatedRootWorkspaceIdBuildersRouteImport } from './routes/_authenticated/_root.$workspaceId.builders'
+import { Route as AuthenticatedRootWorkspaceIdNodesNodeIdRouteImport } from './routes/_authenticated/_root.$workspaceId.nodes_.$nodeId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -77,6 +78,12 @@ const AuthenticatedRootWorkspaceIdBuildersRoute =
     path: '/builders',
     getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
   } as any)
+const AuthenticatedRootWorkspaceIdNodesNodeIdRoute =
+  AuthenticatedRootWorkspaceIdNodesNodeIdRouteImport.update({
+    id: '/nodes_/$nodeId',
+    path: '/nodes/$nodeId',
+    getParentRoute: () => AuthenticatedRootWorkspaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
   '/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
   '/$workspaceId/': typeof AuthenticatedRootWorkspaceIdIndexRoute
+  '/$workspaceId/nodes/$nodeId': typeof AuthenticatedRootWorkspaceIdNodesNodeIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
   '/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
   '/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
   '/$workspaceId': typeof AuthenticatedRootWorkspaceIdIndexRoute
+  '/$workspaceId/nodes/$nodeId': typeof AuthenticatedRootWorkspaceIdNodesNodeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -111,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/_root/$workspaceId/settings': typeof AuthenticatedRootWorkspaceIdSettingsRoute
   '/_authenticated/_root/$workspaceId/templates': typeof AuthenticatedRootWorkspaceIdTemplatesRoute
   '/_authenticated/_root/$workspaceId/': typeof AuthenticatedRootWorkspaceIdIndexRoute
+  '/_authenticated/_root/$workspaceId/nodes_/$nodeId': typeof AuthenticatedRootWorkspaceIdNodesNodeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/$workspaceId/settings'
     | '/$workspaceId/templates'
     | '/$workspaceId/'
+    | '/$workspaceId/nodes/$nodeId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
     | '/$workspaceId/settings'
     | '/$workspaceId/templates'
     | '/$workspaceId'
+    | '/$workspaceId/nodes/$nodeId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -146,6 +158,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_root/$workspaceId/settings'
     | '/_authenticated/_root/$workspaceId/templates'
     | '/_authenticated/_root/$workspaceId/'
+    | '/_authenticated/_root/$workspaceId/nodes_/$nodeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRootWorkspaceIdBuildersRouteImport
       parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
     }
+    '/_authenticated/_root/$workspaceId/nodes_/$nodeId': {
+      id: '/_authenticated/_root/$workspaceId/nodes_/$nodeId'
+      path: '/nodes/$nodeId'
+      fullPath: '/$workspaceId/nodes/$nodeId'
+      preLoaderRoute: typeof AuthenticatedRootWorkspaceIdNodesNodeIdRouteImport
+      parentRoute: typeof AuthenticatedRootWorkspaceIdRoute
+    }
   }
 }
 
@@ -235,6 +255,7 @@ interface AuthenticatedRootWorkspaceIdRouteChildren {
   AuthenticatedRootWorkspaceIdSettingsRoute: typeof AuthenticatedRootWorkspaceIdSettingsRoute
   AuthenticatedRootWorkspaceIdTemplatesRoute: typeof AuthenticatedRootWorkspaceIdTemplatesRoute
   AuthenticatedRootWorkspaceIdIndexRoute: typeof AuthenticatedRootWorkspaceIdIndexRoute
+  AuthenticatedRootWorkspaceIdNodesNodeIdRoute: typeof AuthenticatedRootWorkspaceIdNodesNodeIdRoute
 }
 
 const AuthenticatedRootWorkspaceIdRouteChildren: AuthenticatedRootWorkspaceIdRouteChildren =
@@ -253,6 +274,8 @@ const AuthenticatedRootWorkspaceIdRouteChildren: AuthenticatedRootWorkspaceIdRou
       AuthenticatedRootWorkspaceIdTemplatesRoute,
     AuthenticatedRootWorkspaceIdIndexRoute:
       AuthenticatedRootWorkspaceIdIndexRoute,
+    AuthenticatedRootWorkspaceIdNodesNodeIdRoute:
+      AuthenticatedRootWorkspaceIdNodesNodeIdRoute,
   }
 
 const AuthenticatedRootWorkspaceIdRouteWithChildren =
