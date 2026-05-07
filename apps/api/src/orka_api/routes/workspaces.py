@@ -23,9 +23,8 @@ from orka_api.errors import ApiHTTPException
 from orka_db.schema import workspace_table
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
     from starlette.requests import Request
-
-    from orka_api.factory import AppState
 
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -75,6 +74,9 @@ class Workspace(BaseModel):
 
 
 class WorkspaceApi:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
     def routes(self) -> list[Route]:
         return [
             Route("/workspaces", self.list_endpoint, methods=["GET"]),
@@ -94,9 +96,9 @@ class WorkspaceApi:
             ),
         ]
 
-    async def list_endpoint(self, request: Request[AppState]) -> JSONResponse:
+    async def list_endpoint(self, request: Request) -> JSONResponse:
         statement = select(workspace_table).order_by(workspace_table.c.slug.asc())
-        async with request.state["engine"].connect() as connection:
+        async with self._engine.connect() as connection:
             workspaces = TypeAdapter(list[Workspace]).validate_python(
                 (await connection.execute(statement)).mappings().all(),
                 from_attributes=False,
@@ -106,7 +108,7 @@ class WorkspaceApi:
             TypeAdapter(list[Workspace]).dump_python(workspaces, mode="json")
         )
 
-    async def create_endpoint(self, request: Request[AppState]) -> Response:
+    async def create_endpoint(self, request: Request) -> Response:
         try:
             payload = WorkspaceCreatePayload.model_validate_json(await request.body())
         except ValidationError as exc:
@@ -119,7 +121,10 @@ class WorkspaceApi:
             ) from exc
 
         try:
-            async with request.state["engine"].begin() as connection:
+            async with self._engine.begin() as connection:
+                if await self._workspace_slug_exists(connection, payload.slug):
+                    raise ApiHTTPException(409, title="Workspace slug already exists")
+
                 workspace = Workspace.model_validate(
                     (
                         await connection.execute(
@@ -134,21 +139,21 @@ class WorkspaceApi:
                     .one()
                 )
         except IntegrityError as exc:
-            message = str(getattr(exc, "orig", exc)).lower()
-            if "slug" in message and ("unique" in message or "duplicate" in message):
-                raise ApiHTTPException(
-                    409, title="Workspace slug already exists"
-                ) from exc
+            async with self._engine.connect() as connection:
+                if await self._workspace_slug_exists(connection, payload.slug):
+                    raise ApiHTTPException(
+                        409, title="Workspace slug already exists"
+                    ) from exc
             raise
 
         return JSONResponse(workspace.model_dump(mode="json"), status_code=201)
 
-    async def get_endpoint(self, request: Request[AppState]) -> Response:
+    async def get_endpoint(self, request: Request) -> Response:
         statement = select(workspace_table).where(
             workspace_table.c.id == request.path_params["workspace_id"]
         )
         try:
-            async with request.state["engine"].connect() as connection:
+            async with self._engine.connect() as connection:
                 workspace = Workspace.model_validate(
                     (await connection.execute(statement)).mappings().one()
                 )
@@ -157,7 +162,7 @@ class WorkspaceApi:
         else:
             return JSONResponse(workspace.model_dump(mode="json"))
 
-    async def update_endpoint(self, request: Request[AppState]) -> Response:
+    async def update_endpoint(self, request: Request) -> Response:
         try:
             payload = WorkspaceUpdatePayload.model_validate_json(await request.body())
         except ValidationError as exc:
@@ -176,7 +181,13 @@ class WorkspaceApi:
         if payload.slug is not None:
             values["slug"] = payload.slug
         try:
-            async with request.state["engine"].begin() as connection:
+            async with self._engine.begin() as connection:
+                await self._assert_workspace_exists(connection, workspace_id)
+                if payload.slug is not None and await self._workspace_slug_exists(
+                    connection, payload.slug, exclude_id=workspace_id
+                ):
+                    raise ApiHTTPException(409, title="Workspace slug already exists")
+
                 workspace = Workspace.model_validate(
                     (
                         await connection.execute(
@@ -189,36 +200,73 @@ class WorkspaceApi:
                     .mappings()
                     .one()
                 )
-        except NoResultFound:
-            raise ApiHTTPException(404, title="Workspace not found")
         except IntegrityError as exc:
-            message = str(getattr(exc, "orig", exc)).lower()
-            if "slug" in message and ("unique" in message or "duplicate" in message):
-                raise ApiHTTPException(
-                    409, title="Workspace slug already exists"
-                ) from exc
+            if payload.slug is not None:
+                async with self._engine.connect() as connection:
+                    if await self._workspace_slug_exists(
+                        connection, payload.slug, exclude_id=workspace_id
+                    ):
+                        raise ApiHTTPException(
+                            409, title="Workspace slug already exists"
+                        ) from exc
             raise
-        else:
-            return JSONResponse(workspace.model_dump(mode="json"))
 
-    async def delete_endpoint(self, request: Request[AppState]) -> Response:
-        try:
-            async with request.state["engine"].begin() as connection:
-                workspace = Workspace.model_validate(
-                    (
-                        await connection.execute(
-                            delete(workspace_table)
-                            .where(
-                                workspace_table.c.id
-                                == request.path_params["workspace_id"]
-                            )
-                            .returning(workspace_table)
-                        )
+        return JSONResponse(workspace.model_dump(mode="json"))
+
+    async def delete_endpoint(self, request: Request) -> Response:
+        workspace_id = request.path_params["workspace_id"]
+        async with self._engine.begin() as connection:
+            await self._assert_workspace_exists(connection, workspace_id)
+            if await self._workspace_has_nodes(connection, workspace_id):
+                raise ApiHTTPException(409, title="Workspace has nodes")
+
+            workspace = Workspace.model_validate(
+                (
+                    await connection.execute(
+                        delete(workspace_table)
+                        .where(workspace_table.c.id == workspace_id)
+                        .returning(workspace_table)
                     )
-                    .mappings()
-                    .one()
                 )
-        except NoResultFound:
+                .mappings()
+                .one()
+            )
+
+        return JSONResponse(workspace.model_dump(mode="json"))
+
+    async def _workspace_slug_exists(
+        self,
+        connection: AsyncConnection,
+        slug: str,
+        *,
+        exclude_id: UUID | None = None,
+    ) -> bool:
+        statement = select(workspace_table.c.id).where(workspace_table.c.slug == slug)
+        if exclude_id is not None:
+            statement = statement.where(workspace_table.c.id != exclude_id)
+
+        existing = (await connection.execute(statement)).scalar_one_or_none()
+        return existing is not None
+
+    async def _assert_workspace_exists(
+        self, connection: AsyncConnection, workspace_id: UUID
+    ) -> None:
+        existing = (
+            await connection.execute(
+                select(workspace_table.c.id).where(workspace_table.c.id == workspace_id)
+            )
+        ).scalar_one_or_none()
+        if existing is None:
             raise ApiHTTPException(404, title="Workspace not found")
-        else:
-            return JSONResponse(workspace.model_dump(mode="json"))
+
+    async def _workspace_has_nodes(
+        self, connection: AsyncConnection, workspace_id: UUID
+    ) -> bool:
+        from orka_db.schema import node_table
+
+        existing = (
+            await connection.execute(
+                select(node_table.c.id).where(node_table.c.workspace_id == workspace_id)
+            )
+        ).scalar_one_or_none()
+        return existing is not None
