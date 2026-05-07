@@ -129,7 +129,9 @@ class WorkspaceApi:
                     (
                         await connection.execute(
                             insert(workspace_table)
-                            .values(id=uuid.uuid4(), name=payload.name, slug=payload.slug)
+                            .values(
+                                id=uuid.uuid4(), name=payload.name, slug=payload.slug
+                            )
                             .returning(workspace_table)
                         )
                     )

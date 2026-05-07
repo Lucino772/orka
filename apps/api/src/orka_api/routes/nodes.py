@@ -133,7 +133,9 @@ class NodeApi:
         except IntegrityError as exc:
             async with self._engine.connect() as connection:
                 if await self._node_name_exists(connection, workspace_id, payload.name):
-                    raise ApiHTTPException(409, title="Node name already exists") from exc
+                    raise ApiHTTPException(
+                        409, title="Node name already exists"
+                    ) from exc
             raise
 
         provisioned = NodeProvisioned(
