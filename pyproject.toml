@@ -12,7 +12,11 @@ dev = [
 
 # NOTE: See configuration here, https://microsoft.github.io/pyright/#/configuration
 [tool.pyright]
-include = []
+include = [
+    "apps/api/src",
+    "apps/agent/src",
+    "packages/python/orka-db/src",
+]
 exclude = [
     "**/.*",
     ".venv",

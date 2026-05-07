@@ -1,2 +1,5 @@
 **/node_modules/
 routeTree.gen.ts
+.venv/
+pnpm-lock.yaml
+uv.lock

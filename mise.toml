@@ -13,9 +13,51 @@ python.uv_venv_auto = true
 # NOTE: Important for quoting to work on Windows
 windows_default_inline_shell_args = "powershell -Command"
 
-[tasks.sync-deps]
-description = "Install and sync Python and Node.js dependencies for the workspace."
-run = [
-    "uv sync --all-packages --all-extras --all-groups",
-    "pnpm install",
-]
+
+[tasks."deps:node"]
+description = "Install Node.js dependencies for the workspace."
+run = "pnpm install --frozen-lockfile"
+
+[tasks."deps:python"]
+description = "Install Python dependencies for the workspace."
+run = "uv sync --all-packages --all-extras --all-groups --frozen"
+
+[tasks."lint:check:eslint"]
+description = "Run ESLint checks for the web app."
+run = "pnpm --dir apps/web run eslint:check"
+
+[tasks."lint:fix:eslint"]
+description = "Run ESLint autofixes for the web app."
+run = "pnpm --dir apps/web run eslint:fix"
+
+[tasks."lint:check:prettier"]
+description = "Check Prettier formatting for JavaScript and TypeScript files."
+run = "pnpm run prettier:check"
+
+[tasks."lint:fix:prettier"]
+description = "Apply Prettier formatting to JavaScript and TypeScript files."
+run = "pnpm run prettier:fix"
+
+[tasks."lint:check:typescript"]
+description = "Run the TypeScript compiler in check mode for the web app."
+run = "pnpm --dir apps/web run typescript:check"
+
+[tasks."lint:check:pyright"]
+description = "Run Pyright type checks for Python packages."
+run = "uv run pyright"
+
+[tasks."lint:check:ruff"]
+description = "Run Ruff lint checks for Python files."
+run = "uv run ruff check ."
+
+[tasks."lint:fix:ruff"]
+description = "Apply Ruff lint autofixes for Python files."
+run = "uv run ruff check . --fix"
+
+[tasks."lint:check:ruff-format"]
+description = "Check Ruff formatting for Python files."
+run = "uv run ruff format . --check"
+
+[tasks."lint:fix:ruff-format"]
+description = "Apply Ruff formatting to Python files."
+run = "uv run ruff format ."
