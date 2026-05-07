@@ -1,0 +1,83 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:node
+      - name: Run ESLint
+        run: mise run lint:check:eslint
+
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:node
+      - name: Run Prettier
+        run: mise run lint:check:prettier
+
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:node
+      - name: Run TypeScript checks
+        run: mise run lint:check:typescript
+
+  pyright:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:python
+      - name: Run Pyright
+        run: mise run lint:check:pyright
+
+  ruff-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:python
+      - name: Run Ruff checks
+        run: mise run lint:check:ruff
+
+  ruff-format-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: jdx/mise-action@v4
+      - name: Trust mise config
+        run: mise trust
+      - name: Install dependencies
+        run: mise run deps:python
+      - name: Run Ruff format checks
+        run: mise run lint:check:ruff-format
