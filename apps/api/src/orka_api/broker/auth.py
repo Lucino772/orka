@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 from dataclasses import dataclass
 from hmac import compare_digest
@@ -18,6 +17,8 @@ from orka_db.schema import node_table
 if TYPE_CHECKING:
     from socketio import AsyncServer
     from sqlalchemy.ext.asyncio import AsyncEngine
+
+    from orka_api.services.nodes import NodeService
 
 
 @dataclass(frozen=True)
@@ -44,28 +45,25 @@ class NodeTokenClaims(BaseModel):
         return UUID(self.sub)
 
 
-class NodeReadyPayload(BaseModel):
-    node_id: UUID
-    workspace_id: UUID
-
-
 class AuthBroker:
-    def __init__(self, engine: AsyncEngine, jwt_service: JwtService) -> None:
+    def __init__(
+        self, engine: AsyncEngine, jwt_service: JwtService, node_service: NodeService
+    ) -> None:
         self._engine = engine
         self._jwt_service = jwt_service
+        self._node_service = node_service
 
     def handlers(self) -> dict[Event, HandlerFunc[Any, Any]]:
         return {
             Event("connect"): self.connect,
+            Event("disconnect"): self.disconnect,
         }
 
     async def connect(
         self, server: AsyncServer, payload: Payload[dict[str, Any]]
     ) -> None:
-        sid = payload.sid
-        auth = payload.data["auth"]
         try:
-            auth_payload = ConnectAuthPayload.model_validate(auth)
+            auth_payload = ConnectAuthPayload.model_validate(payload.data["auth"])
             claims = NodeTokenClaims.model_validate(
                 self._jwt_service.decode(auth_payload.token)
             )
@@ -75,6 +73,8 @@ class AuthBroker:
             node = await self._load_node(claims.node_id)
             if node is None:
                 raise ConnectionRefusedError("Unknown node.")
+            if node["secret_hash"] is None:
+                raise ConnectionRefusedError("Node token has not been generated.")
 
             secret_hash = hashlib.sha256(claims.secret.encode("utf-8")).hexdigest()
             if not compare_digest(secret_hash, node["secret_hash"]):
@@ -85,27 +85,35 @@ class AuthBroker:
                 workspace_id=node["workspace_id"],
             )
             await server.save_session(
-                sid,
+                payload.sid,
                 {
                     "node_id": str(session.node_id),
                     "workspace_id": str(session.workspace_id),
                 },
             )
-            # Multiple sockets per logical node are allowed.
-            # Future server-to-agent commands must target a
-            # concrete sid/session, not a logical node room.
-            await server.enter_room(sid, f"workspace:{session.workspace_id}")
-            server.start_background_task(
-                _emit_ready,
-                server,
-                sid,
-                NodeReadyPayload(
+            async with self._engine.begin() as connection:
+                await self._node_service.set_status(
+                    connection,
                     node_id=session.node_id,
-                    workspace_id=session.workspace_id,
-                ),
-            )
+                    status="online",
+                    reason="authenticated_connect",
+                    message="Node connected.",
+                )
         except (InvalidJwtError, ValidationError) as exc:
             raise ConnectionRefusedError("Invalid node token.") from exc
+
+    async def disconnect(self, server: AsyncServer, payload: Payload[dict[str, Any]]):
+        session = await self.get_authenticated_node(server, payload.sid)
+        if session is None:
+            return
+        async with self._engine.begin() as connection:
+            await self._node_service.set_status(
+                connection,
+                node_id=session.node_id,
+                status="offline",
+                reason="socket_disconnect",
+                message="Node disconnected.",
+            )
 
     async def get_authenticated_node(
         self, server: AsyncServer, sid: str
@@ -146,8 +154,3 @@ class AuthBroker:
                 .mappings()
                 .one_or_none()
             )
-
-
-async def _emit_ready(sio: AsyncServer, sid: str, payload: NodeReadyPayload) -> None:
-    await asyncio.sleep(0)
-    await sio.emit("node:ready", payload.model_dump(mode="json"), to=sid)

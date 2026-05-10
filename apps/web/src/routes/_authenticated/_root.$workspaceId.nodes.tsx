@@ -8,16 +8,11 @@ import {
 } from "@tanstack/react-table";
 import { PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { nodesApi, type NodeSummary } from "@/api/nodes";
 import { AddNodeSheet } from "@/features/nodes/add-node-sheet";
-import {
-    getWorkspaceNodes,
-    nodeStatusLabels,
-    statusOptions,
-    upsertWorkspaceNode,
-} from "@/features/nodes/mock-data";
-import type { NodeStatus, WorkspaceNode } from "@/features/nodes/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,23 +25,47 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_root/$workspaceId/nodes")({
+    async loader({ context, params }) {
+        await context.queryClient.ensureQueryData(
+            nodesApi.list.getFetchOptions({ workspaceId: params.workspaceId })
+        );
+    },
     component: RouteComponent,
 });
 
-type NodeStatusFilter = (typeof statusOptions)[number]["value"];
-
 function RouteComponent() {
     const { workspaceId } = Route.useParams();
-    const [nodes, setNodes] = useState<WorkspaceNode[]>(() => getWorkspaceNodes());
+    const navigate = Route.useNavigate();
+    const queryClient = useQueryClient();
     const [searchValue, setSearchValue] = useState("");
-    const [statusFilter, setStatusFilter] = useState<NodeStatusFilter>("all");
     const [isAddNodeOpen, setIsAddNodeOpen] = useState(false);
     const deferredSearchValue = useDeferredValue(searchValue);
     const normalizedSearch = deferredSearchValue.trim().toLowerCase();
+    const { data: nodes } = nodesApi.list.useSuspenseQuery({
+        variables: { workspaceId },
+        refetchInterval: 3000,
+    });
+    const createNodeMutation = nodesApi.create.useMutation({
+        async onSuccess(node) {
+            await queryClient.invalidateQueries({
+                queryKey: nodesApi.list.getKey({ workspaceId }),
+            });
+            await navigate({
+                to: "/$workspaceId/nodes/$nodeId",
+                params: {
+                    workspaceId,
+                    nodeId: node.id,
+                },
+                search: {
+                    tab: "settings",
+                },
+            });
+        },
+    });
     const summary = useMemo(() => getNodeSummary(nodes), [nodes]);
     const filteredNodes = useMemo(
-        () => filterNodes(nodes, normalizedSearch, statusFilter),
-        [nodes, normalizedSearch, statusFilter]
+        () => filterNodes(nodes, normalizedSearch),
+        [nodes, normalizedSearch]
     );
 
     return (
@@ -59,8 +78,8 @@ function RouteComponent() {
                                 Nodes
                             </h1>
                             <p className="text-muted-foreground max-w-3xl text-sm leading-6">
-                                Manage mocked workspace nodes in a dense operational
-                                table without touching the backend.
+                                Manage node connectivity and inspect the latest metadata
+                                reported by each agent.
                             </p>
                         </div>
                     </div>
@@ -72,7 +91,7 @@ function RouteComponent() {
                             <div className="flex w-full max-w-4xl flex-col gap-3 sm:flex-row sm:items-center">
                                 <Input
                                     value={searchValue}
-                                    placeholder="Search by node name, GPU model, or label"
+                                    placeholder="Search by node name, hostname, agent, or OS"
                                     className="h-10 min-w-0 flex-1 px-3 text-sm md:text-sm"
                                     onChange={(event) =>
                                         setSearchValue(event.target.value)
@@ -96,39 +115,6 @@ function RouteComponent() {
                                 {filteredNodes.length} of {nodes.length} nodes visible
                             </div>
                         </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            {statusOptions.map((option) => {
-                                const isActive = statusFilter === option.value;
-
-                                return (
-                                    <Button
-                                        key={option.value}
-                                        type="button"
-                                        variant={isActive ? "default" : "outline"}
-                                        size="sm"
-                                        className="rounded-md"
-                                        onClick={() => setStatusFilter(option.value)}
-                                    >
-                                        {option.label}
-                                    </Button>
-                                );
-                            })}
-
-                            {(searchValue || statusFilter !== "all") && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSearchValue("");
-                                        setStatusFilter("all");
-                                    }}
-                                >
-                                    Clear filters
-                                </Button>
-                            )}
-                        </div>
                     </div>
                 </header>
 
@@ -139,22 +125,19 @@ function RouteComponent() {
                         <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-12 text-center sm:px-6">
                             <div>
                                 <p className="text-foreground text-sm font-medium">
-                                    No nodes match the current filters.
+                                    No nodes match the current search.
                                 </p>
                                 <p className="text-muted-foreground mt-2 text-sm leading-6">
-                                    Reset the search terms or status filter to return to
-                                    the full mocked inventory.
+                                    Clear the search term to return to the full node
+                                    inventory.
                                 </p>
                                 <div className="mt-4 flex justify-center">
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => {
-                                            setSearchValue("");
-                                            setStatusFilter("all");
-                                        }}
+                                        onClick={() => setSearchValue("")}
                                     >
-                                        Clear filters
+                                        Clear search
                                     </Button>
                                 </div>
                             </div>
@@ -166,11 +149,11 @@ function RouteComponent() {
             <AddNodeSheet
                 open={isAddNodeOpen}
                 onOpenChange={setIsAddNodeOpen}
-                onCreateNode={(node) => {
-                    upsertWorkspaceNode(node);
-                    setNodes((currentNodes) => [node, ...currentNodes]);
-                    setSearchValue("");
-                    setStatusFilter("all");
+                onCreateNode={async (node) => {
+                    await createNodeMutation.mutateAsync({
+                        workspaceId,
+                        data: node,
+                    });
                 }}
             />
         </section>
@@ -187,17 +170,17 @@ function SummaryStrip({ summary }: { summary: ReturnType<typeof getNodeSummary> 
         {
             label: "Online",
             value: summary.onlineNodes.toString(),
+            detail: `${summary.offlineNodes} offline`,
+        },
+        {
+            label: "Healthy",
+            value: summary.healthyNodes.toString(),
             detail: `${summary.degradedNodes} degraded`,
         },
         {
             label: "GPUs",
             value: summary.totalGpus.toString(),
-            detail: `${summary.totalMemoryGb.toLocaleString()} GB RAM`,
-        },
-        {
-            label: "Avg utilization",
-            value: `${summary.averageUtilization}%`,
-            detail: `${summary.totalCpuCores.toLocaleString()} CPU cores`,
+            detail: `${formatBytes(summary.totalRamBytes)} RAM`,
         },
     ];
 
@@ -211,7 +194,6 @@ function SummaryStrip({ summary }: { summary: ReturnType<typeof getNodeSummary> 
                         index !== items.length - 1 &&
                             "border-border border-b xl:border-r xl:border-b-0",
                         index === 0 && "sm:border-r xl:border-r",
-                        index === 1 && "xl:border-r",
                         index === 2 && "sm:border-r xl:border-r"
                     )}
                 >
@@ -234,70 +216,99 @@ function DenseTable({
     nodes,
     workspaceId,
 }: {
-    nodes: WorkspaceNode[];
+    nodes: NodeSummary[];
     workspaceId: string;
 }) {
-    const columns = useMemo<ColumnDef<WorkspaceNode>[]>(
+    const columns = useMemo<ColumnDef<NodeSummary>[]>(
         () => [
             {
                 id: "name",
                 accessorKey: "name",
-                size: 304,
+                size: 300,
                 header: "Node",
                 cell: ({ row }) => (
-                    <Link
-                        to="/$workspaceId/nodes/$nodeId"
-                        params={{
-                            workspaceId,
-                            nodeId: row.original.id,
-                        }}
-                        className="text-foreground font-medium underline-offset-4 hover:underline"
-                    >
-                        {row.original.name}
-                    </Link>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <StatusDot status={row.original.status} />
+                            <Link
+                                to="/$workspaceId/nodes/$nodeId"
+                                params={{
+                                    workspaceId,
+                                    nodeId: row.original.id,
+                                }}
+                                className="text-foreground font-medium underline-offset-4 hover:underline"
+                            >
+                                {row.original.name}
+                            </Link>
+                        </div>
+                        <div className="text-muted-foreground pl-[1.125rem] text-xs">
+                            {row.original.hostname ?? "—"}
+                        </div>
+                    </div>
                 ),
             },
             {
-                id: "status",
-                accessorKey: "status",
-                size: 128,
-                header: "Status",
-                cell: ({ row }) => <StatusPill status={row.original.status} compact />,
-            },
-            {
-                id: "gpuModel",
-                size: 280,
-                header: "GPUs",
-                cell: ({ row }) =>
-                    `${row.original.gpuCount} x ${row.original.gpuModel}`,
-            },
-            {
-                id: "cpuCores",
-                accessorKey: "cpuCores",
-                size: 120,
-                header: "CPU",
-            },
-            {
-                id: "memoryGb",
-                size: 128,
-                header: "RAM",
-                cell: ({ row }) => `${row.original.memoryGb} GB`,
-            },
-            {
-                id: "labels",
-                accessorKey: "labels",
-                size: 260,
-                header: "Labels",
+                id: "health",
+                accessorKey: "health",
+                size: 140,
+                header: "Health",
                 cell: ({ row }) => (
-                    <div className="flex flex-wrap gap-1 whitespace-normal">
-                        {row.original.labels.map((label) => (
-                            <span
-                                key={label}
-                                className="border-border bg-muted/40 text-muted-foreground rounded border px-1.5 py-0.5 text-[11px]"
-                            >
-                                {label}
-                            </span>
-                        ))}
+                    <StatusPill
+                        value={row.original.health}
+                        tone={row.original.health}
+                    />
+                ),
+            },
+            {
+                id: "gpus",
+                size: 260,
+                header: "GPUs",
+                cell: ({ row }) => (
+                    <div className="text-foreground">
+                        {formatGpuSummary(row.original)}
+                    </div>
+                ),
+            },
+            {
+                id: "cpu",
+                size: 110,
+                header: "CPU",
+                cell: ({ row }) => (
+                    <div className="text-foreground">
+                        {row.original.cpu_core_count ?? "—"}
+                    </div>
+                ),
+            },
+            {
+                id: "ram",
+                size: 120,
+                header: "RAM",
+                cell: ({ row }) => (
+                    <div className="text-foreground">
+                        {formatBytes(row.original.ram_bytes)}
+                    </div>
+                ),
+            },
+            {
+                id: "agent",
+                size: 170,
+                header: "Agent",
+                cell: ({ row }) => (
+                    <div className="text-foreground">
+                        {row.original.agent_version ?? "—"}
+                    </div>
+                ),
+            },
+            {
+                id: "os",
+                size: 180,
+                header: "OS",
+                cell: ({ row }) => (
+                    <div className="text-foreground">
+                        {joinParts(
+                            row.original.os_name ?? null,
+                            row.original.os_version ?? null
+                        )}
                     </div>
                 ),
             },
@@ -368,7 +379,7 @@ function DenseTable({
     );
 }
 
-function DenseTableColGroup({ table }: { table: TanstackTable<WorkspaceNode> }) {
+function DenseTableColGroup({ table }: { table: TanstackTable<NodeSummary> }) {
     return (
         <colgroup>
             {table.getAllLeafColumns().map((column) => {
@@ -381,56 +392,69 @@ function DenseTableColGroup({ table }: { table: TanstackTable<WorkspaceNode> }) 
 }
 
 function StatusPill({
-    status,
-    compact = false,
+    value,
+    tone,
 }: {
-    status: NodeStatus;
-    compact?: boolean;
+    value: string;
+    tone: "online" | "offline" | "unknown" | "healthy" | "degraded" | "error";
 }) {
     return (
         <span
             className={cn(
-                "inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium",
-                compact && "px-1.5 py-0.5 text-[11px]",
-                getStatusPillClassName(status)
+                "inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium capitalize",
+                getStatusPillClassName(tone)
             )}
         >
-            {nodeStatusLabels[status]}
+            {value}
         </span>
     );
 }
 
-function getStatusPillClassName(status: NodeStatus) {
-    switch (status) {
+function StatusDot({ status }: { status: "online" | "offline" }) {
+    return (
+        <div className="flex items-center">
+            <span
+                className={cn(
+                    "inline-block size-2.5 rounded-full",
+                    status === "online" ? "bg-emerald-500" : "bg-slate-300"
+                )}
+                aria-label={status}
+                title={status}
+            />
+        </div>
+    );
+}
+
+function getStatusPillClassName(
+    value: "online" | "offline" | "unknown" | "healthy" | "degraded" | "error"
+) {
+    switch (value) {
         case "online":
+        case "healthy":
             return "border-emerald-200 bg-emerald-50 text-emerald-700";
         case "degraded":
             return "border-orange-200 bg-orange-50 text-orange-700";
-        case "offline":
-            return "border-border bg-muted text-muted-foreground";
+        case "error":
+            return "border-red-200 bg-red-50 text-red-700";
         default:
-            return "border-border bg-background text-foreground";
+            return "border-border bg-muted text-muted-foreground";
     }
 }
 
-function filterNodes(
-    nodes: WorkspaceNode[],
-    searchValue: string,
-    statusFilter: NodeStatusFilter
-) {
+function filterNodes(nodes: NodeSummary[], searchValue: string) {
     return nodes.filter((node) => {
-        const matchesStatus =
-            statusFilter === "all" ? true : node.status === statusFilter;
-
-        if (!matchesStatus) {
-            return false;
-        }
-
         if (!searchValue) {
             return true;
         }
 
-        const haystack = [node.name, node.gpuModel, ...node.labels]
+        const haystack = [
+            node.name,
+            node.hostname ?? "",
+            node.agent_version ?? "",
+            node.os_name ?? "",
+            node.os_version ?? "",
+            node.gpu_model ?? "",
+        ]
             .join(" ")
             .toLowerCase();
 
@@ -438,27 +462,40 @@ function filterNodes(
     });
 }
 
-function getNodeSummary(nodes: WorkspaceNode[]) {
-    const totalNodes = nodes.length;
-    const onlineNodes = nodes.filter((node) => node.status === "online").length;
-    const degradedNodes = nodes.filter((node) => node.status === "degraded").length;
-    const totalGpus = nodes.reduce((sum, node) => sum + node.gpuCount, 0);
-    const totalMemoryGb = nodes.reduce((sum, node) => sum + node.memoryGb, 0);
-    const totalCpuCores = nodes.reduce((sum, node) => sum + node.cpuCores, 0);
-    const averageUtilization =
-        totalNodes > 0
-            ? Math.round(
-                  nodes.reduce((sum, node) => sum + node.utilizationPct, 0) / totalNodes
-              )
-            : 0;
+function joinParts(...parts: Array<string | null | undefined>) {
+    const filtered = parts.filter(Boolean);
+    return filtered.length ? filtered.join(" ") : "—";
+}
 
+function getNodeSummary(nodes: NodeSummary[]) {
     return {
-        totalNodes,
-        degradedNodes,
-        onlineNodes,
-        totalGpus,
-        totalMemoryGb,
-        totalCpuCores,
-        averageUtilization,
+        totalNodes: nodes.length,
+        onlineNodes: nodes.filter((node) => node.status === "online").length,
+        offlineNodes: nodes.filter((node) => node.status === "offline").length,
+        healthyNodes: nodes.filter((node) => node.health === "healthy").length,
+        degradedNodes: nodes.filter((node) => node.health === "degraded").length,
+        totalGpus: nodes.reduce((sum, node) => sum + (node.gpu_count ?? 0), 0),
+        totalRamBytes: nodes.reduce((sum, node) => sum + (node.ram_bytes ?? 0), 0),
     };
+}
+
+function formatGpuSummary(node: NodeSummary) {
+    const count = node.gpu_count ?? 0;
+    const model = node.gpu_model ?? "—";
+    if (count <= 0) {
+        return "—";
+    }
+    return `${count} x ${model}`;
+}
+
+function formatBytes(value: number | null | undefined) {
+    if (value == null) {
+        return "—";
+    }
+    const gb = value / 1024 ** 3;
+    if (gb >= 1) {
+        return `${Math.round(gb)} GB`;
+    }
+    const mb = value / 1024 ** 2;
+    return `${Math.round(mb)} MB`;
 }

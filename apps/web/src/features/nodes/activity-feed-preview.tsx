@@ -1,429 +1,308 @@
-import {
-    AlertCircleIcon,
-    CheckmarkCircle02Icon,
-    CpuSettingsIcon,
-    Edit02Icon,
-    FileEditIcon,
-    LabelIcon,
-} from "@hugeicons/core-free-icons";
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import { useState, type ReactNode } from "react";
 
-import type { NodeActivityItem } from "@/features/nodes/types";
+import type { NodeActivityEntry } from "@/api/nodes";
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 
-type ActivityTone = "positive" | "warning" | "neutral";
-type ActivityKind =
-    | "profile"
-    | "health"
-    | "scheduling"
-    | "labels"
-    | "inventory"
-    | "generic";
+export function ActivityTimeline({ items }: { items: NodeActivityEntry[] }) {
+    const [selectedId, setSelectedId] = useState<string | null>(null);
 
-interface ActivityEntry {
-    id: string;
-    kind: ActivityKind;
-    tone: ActivityTone;
-    title: string;
-    details: string;
-    absoluteTimeLabel: string;
-    relativeTimeLabel: string;
-    dateLabel: string;
-    occurredAtMs: number;
-}
+    const selectedItem = items.find((item) => item.id === selectedId) ?? null;
 
-interface ActivityMetadata {
-    kind: ActivityKind;
-    tone: ActivityTone;
-    title: string;
-    details: string;
-}
-
-interface ActivityTimelineProps {
-    items: NodeActivityItem[];
-}
-
-export function ActivityTimeline({ items }: ActivityTimelineProps) {
-    const entries = items.map(mapActivityEntry);
-    const groups = groupEntriesByDate(entries);
-
-    if (!entries.length) {
+    if (!items.length) {
         return (
             <div className="py-10 text-center">
                 <p className="text-foreground text-sm font-medium">No activity yet</p>
                 <p className="text-muted-foreground mt-2 text-sm">
-                    New operational events will appear here as the node changes.
+                    Connection, metadata, and health events will appear here.
                 </p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-7">
-            {groups.map((group) => (
-                <TimelineGroup key={group.dateLabel} group={group} />
-            ))}
+        <div className="border-border flex h-full min-h-0 min-w-0 flex-1 flex-col border-y">
+            {selectedItem ? (
+                <ResizablePanelGroup
+                    orientation="horizontal"
+                    className="min-h-0 flex-1"
+                >
+                    <ResizablePanel minSize="50%" maxSize="75%">
+                        <ActivityTable
+                            items={items}
+                            selectedId={selectedId}
+                            onSelect={setSelectedId}
+                        />
+                    </ResizablePanel>
+
+                    <ResizableHandle
+                        withHandle
+                        className="w-2 bg-slate-50 transition-colors hover:bg-slate-100"
+                    />
+
+                    <ResizablePanel minSize="25%" maxSize="50%">
+                        <div className="bg-muted/20 h-full min-h-0 min-w-[10rem] p-3">
+                            <PayloadPanel
+                                item={selectedItem}
+                                onClose={() => setSelectedId(null)}
+                            />
+                        </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
+            ) : (
+                <ActivityTable
+                    items={items}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                />
+            )}
         </div>
     );
 }
 
-function TimelineGroup({
-    group,
+function ActivityTable({
+    items,
+    selectedId,
+    onSelect,
 }: {
-    group: { dateLabel: string; entries: ActivityEntry[] };
+    items: NodeActivityEntry[];
+    selectedId: string | null;
+    onSelect: (id: string) => void;
 }) {
     return (
-        <section className="relative">
-            <span className="bg-border absolute top-2 bottom-5 left-[0.96875rem] w-px" />
+        <div className="flex h-full min-h-0 flex-col">
+            <table className="w-full table-fixed">
+                <colgroup>
+                    <col style={{ width: "110px" }} />
+                    <col />
+                    <col style={{ width: "220px" }} />
+                </colgroup>
+                <thead className="bg-background">
+                    <tr className="border-border border-b">
+                        <HeaderCell>Severity</HeaderCell>
+                        <HeaderCell>Event</HeaderCell>
+                        <HeaderCell>Time</HeaderCell>
+                    </tr>
+                </thead>
+            </table>
 
-            <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4">
-                <div className="flex justify-center">
-                    <span className="border-border bg-background relative z-10 mt-1 size-2.5 rounded-full border" />
-                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                <table className="w-full table-fixed">
+                    <colgroup>
+                        <col style={{ width: "110px" }} />
+                        <col />
+                        <col style={{ width: "220px" }} />
+                    </colgroup>
+                    <tbody>
+                        {items.map((item) => {
+                            const isSelected = item.id === selectedId;
 
-                <div className="text-foreground/90 pt-0.5 text-[11px] font-semibold tracking-[0.24em] uppercase">
-                    {group.dateLabel}
-                </div>
+                            return (
+                                <tr
+                                    key={item.id}
+                                    className={cn(
+                                        "border-border border-b align-top transition-colors",
+                                        "hover:bg-muted/15 cursor-pointer",
+                                        isSelected && "bg-muted/20"
+                                    )}
+                                    onClick={() => onSelect(item.id)}
+                                >
+                                    <BodyCell>
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize",
+                                                item.severity === "error"
+                                                    ? "bg-red-50 text-red-700"
+                                                    : item.severity === "warning"
+                                                      ? "bg-orange-50 text-orange-700"
+                                                      : "bg-slate-100 text-slate-700"
+                                            )}
+                                        >
+                                            {item.severity}
+                                        </span>
+                                    </BodyCell>
+                                    <BodyCell>
+                                        <div className="text-foreground font-medium">
+                                            {item.event_type}
+                                        </div>
+                                        <div className="text-muted-foreground mt-1 text-sm">
+                                            {item.message ?? "No message"}
+                                        </div>
+                                    </BodyCell>
+                                    <BodyCell>
+                                        <div className="text-muted-foreground text-sm">
+                                            {formatDateTime(item.occurred_at)}
+                                        </div>
+                                    </BodyCell>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
-
-            <div className="mt-4 space-y-4">
-                {group.entries.map((entry) => (
-                    <TimelineItem key={entry.id} entry={entry} />
-                ))}
-            </div>
-        </section>
+        </div>
     );
 }
 
-function TimelineItem({ entry }: { entry: ActivityEntry }) {
+function PayloadPanel({
+    item,
+    onClose,
+}: {
+    item: NodeActivityEntry;
+    onClose: () => void;
+}) {
+    const hasPayload = Object.keys(item.payload).length > 0;
+
     return (
-        <article className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4">
-            <div className="flex justify-center">
-                <span
-                    className={cn(
-                        "bg-background relative z-10 mt-0.5 flex size-8 items-center justify-center rounded-full border shadow-[0_0_0_4px_var(--background)]",
-                        getIconChipClassName(entry.tone)
-                    )}
-                >
-                    <HugeiconsIcon
-                        icon={getActivityIcon(entry.kind, entry.tone)}
-                        className="size-4"
-                        strokeWidth={1.8}
-                    />
-                </span>
-            </div>
-
-            <div className="min-w-0 pt-0.5">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <h3 className="text-foreground text-sm font-medium">
-                        {entry.title}
-                    </h3>
-                    <span className="text-muted-foreground text-xs">
-                        {entry.absoluteTimeLabel}
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                        {entry.relativeTimeLabel}
-                    </span>
-                </div>
-
-                <div className="mt-2">
-                    <div className="border-border bg-background inline-flex max-w-full rounded-md border px-3 py-2">
-                        <p className="text-foreground text-sm">{entry.details}</p>
+        <div className="flex h-full min-h-0 flex-col rounded-xl bg-slate-50/55 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
+            <div className="px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <SeverityIcon severity={item.severity} />
+                            <div className="text-foreground text-sm font-semibold">
+                                {item.event_type}
+                            </div>
+                        </div>
+                        <div className="text-muted-foreground mt-1 text-sm">
+                            {item.message ?? "No message"}
+                        </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                        <div className="text-muted-foreground text-sm">
+                            {formatDateTime(item.occurred_at)}
+                        </div>
+                        <button
+                            type="button"
+                            className="text-muted-foreground hover:text-foreground inline-flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors"
+                            onClick={onClose}
+                            aria-label="Close payload panel"
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                className="size-4"
+                                aria-hidden="true"
+                                fill="none"
+                            >
+                                <path
+                                    d="M4 4 12 12M12 4 4 12"
+                                    stroke="currentColor"
+                                    strokeWidth="1.4"
+                                    strokeLinecap="round"
+                                />
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
-        </article>
+
+            <div className="min-h-0 flex-1 overflow-auto px-4 pb-4">
+                {hasPayload ? (
+                    <div className="overflow-hidden rounded-lg bg-slate-50/80">
+                        <pre className="w-full overflow-x-auto px-4 py-4 text-sm whitespace-pre-wrap text-slate-800">
+                            {JSON.stringify(item.payload, null, 2)}
+                        </pre>
+                    </div>
+                ) : (
+                    <div className="flex h-full items-center justify-center rounded-lg bg-slate-50/80 px-6 text-center">
+                        <div>
+                            <p className="text-foreground text-sm font-medium">
+                                No payload recorded
+                            </p>
+                            <p className="text-muted-foreground mt-2 text-sm">
+                                This event only includes its summary message.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 
-function mapActivityEntry(item: NodeActivityItem): ActivityEntry {
-    const metadata = inferActivityMetadata(item);
-    const occurredAt = parseOccurredAt(item.occurredAt);
-
-    return {
-        id: item.id,
-        kind: metadata.kind,
-        tone: metadata.tone,
-        title: metadata.title,
-        details: metadata.details,
-        absoluteTimeLabel: occurredAt ? formatAbsoluteTime(occurredAt) : "Unknown time",
-        relativeTimeLabel: occurredAt ? formatRelativeTime(occurredAt) : "unknown time",
-        dateLabel: occurredAt ? formatDateLabel(occurredAt) : "Unknown date",
-        occurredAtMs: occurredAt?.getTime() ?? Number.NEGATIVE_INFINITY,
-    };
+function HeaderCell({ children }: { children: ReactNode }) {
+    return (
+        <th className="text-muted-foreground px-4 py-3 text-left text-[11px] font-medium tracking-[0.18em] uppercase">
+            {children}
+        </th>
+    );
 }
 
-function inferActivityMetadata(item: NodeActivityItem): ActivityMetadata {
-    const normalizedTitle = item.title.trim().toLowerCase();
-    const description = item.description.trim();
-    const normalizedDescription = description.toLowerCase();
-
-    if (normalizedTitle === "profile applied") {
-        return {
-            kind: "profile",
-            tone: "positive",
-            title: "Scheduler applied a profile",
-            details: normalizeProfileDetails(description),
-        };
-    }
-
-    if (normalizedTitle === "profile created") {
-        return {
-            kind: "profile",
-            tone: "neutral",
-            title: "Operator created a profile",
-            details: normalizeProfileDetails(description),
-        };
-    }
-
-    if (normalizedTitle === "agent heartbeat received") {
-        return {
-            kind: "health",
-            tone: "positive",
-            title: "Agent reported a heartbeat",
-            details: description,
-        };
-    }
-
-    if (
-        normalizedTitle === "node degraded" ||
-        normalizedTitle === "agent disconnected" ||
-        normalizedTitle === "inference workload drained"
-    ) {
-        return {
-            kind: "health",
-            tone: "warning",
-            title:
-                normalizedTitle === "node degraded"
-                    ? "Agent reported a health issue"
-                    : normalizedTitle === "inference workload drained"
-                      ? "Scheduler drained workloads from the node"
-                      : "Agent disconnected from the node",
-            details: description,
-        };
-    }
-
-    if (
-        normalizedDescription.includes("unavailable") ||
-        normalizedDescription.includes("timeout")
-    ) {
-        return {
-            kind: "health",
-            tone: "warning",
-            title: "Agent reported a health issue",
-            details: description,
-        };
-    }
-
-    if (normalizedTitle === "node enabled") {
-        return {
-            kind: "scheduling",
-            tone: "positive",
-            title: "Operator changed the node status",
-            details: "Disabled -> Enabled",
-        };
-    }
-
-    if (normalizedTitle === "node disabled") {
-        return {
-            kind: "scheduling",
-            tone: "warning",
-            title: "Operator changed the node status",
-            details: "Enabled -> Disabled",
-        };
-    }
-
-    if (
-        normalizedTitle === "label added" ||
-        normalizedTitle === "label removed" ||
-        normalizedTitle === "labels updated"
-    ) {
-        return {
-            kind: "labels",
-            tone: "neutral",
-            title: "Operator changed the node labels",
-            details: formatLabelDetails(description),
-        };
-    }
-
-    if (normalizedTitle === "name updated") {
-        return {
-            kind: "inventory",
-            tone: "neutral",
-            title: "Operator renamed the node",
-            details: description
-                .replace(/^Renamed node to\s+/i, "Name -> ")
-                .replace(/\.$/, ""),
-        };
-    }
-
-    if (normalizedTitle === "node registered") {
-        return {
-            kind: "inventory",
-            tone: "positive",
-            title: "Provisioning registered the node",
-            details: description,
-        };
-    }
-
-    return {
-        kind: "generic",
-        tone: "neutral",
-        title: item.title,
-        details: description,
-    };
+function BodyCell({ children }: { children: ReactNode }) {
+    return <td className="px-4 py-3 text-sm">{children}</td>;
 }
 
-function groupEntriesByDate(entries: ActivityEntry[]) {
-    const groups = new Map<string, ActivityEntry[]>();
+function SeverityIcon({ severity }: { severity: NodeActivityEntry["severity"] }) {
+    const tone =
+        severity === "error"
+            ? "text-red-600"
+            : severity === "warning"
+              ? "text-orange-600"
+              : "text-slate-500";
 
-    for (const entry of entries) {
-        const existingEntries = groups.get(entry.dateLabel);
-
-        if (existingEntries) {
-            existingEntries.push(entry);
-        } else {
-            groups.set(entry.dateLabel, [entry]);
-        }
-    }
-
-    return Array.from(groups.entries())
-        .map(([dateLabel, groupedEntries]) => ({
-            dateLabel,
-            entries: groupedEntries.sort(
-                (left, right) => right.occurredAtMs - left.occurredAtMs
-            ),
-        }))
-        .sort(
-            (left, right) =>
-                right.entries[0]!.occurredAtMs - left.entries[0]!.occurredAtMs
-        );
+    return (
+        <span className={cn("inline-flex size-4 items-center justify-center", tone)}>
+            <svg viewBox="0 0 16 16" className="size-4" aria-hidden="true" fill="none">
+                {severity === "info" ? (
+                    <>
+                        <circle
+                            cx="8"
+                            cy="8"
+                            r="6"
+                            fill="currentColor"
+                            opacity="0.16"
+                        />
+                        <circle cx="8" cy="8" r="1.25" fill="currentColor" />
+                    </>
+                ) : severity === "warning" ? (
+                    <>
+                        <path
+                            d="M8 2.5 14 13H2L8 2.5Z"
+                            fill="currentColor"
+                            opacity="0.16"
+                        />
+                        <path
+                            d="M8 5.6v3.4M8 11.1h.01"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <circle
+                            cx="8"
+                            cy="8"
+                            r="6"
+                            fill="currentColor"
+                            opacity="0.16"
+                        />
+                        <path
+                            d="M8 4.9v3.9M8 10.9h.01"
+                            stroke="currentColor"
+                            strokeWidth="1.4"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </>
+                )}
+            </svg>
+        </span>
+    );
 }
 
-function parseOccurredAt(occurredAt: string) {
-    const resolvedDate = new Date(occurredAt);
-
-    if (Number.isNaN(resolvedDate.getTime())) {
-        return null;
+function formatDateTime(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
     }
-
-    return resolvedDate;
-}
-
-function formatDateLabel(date: Date) {
     return new Intl.DateTimeFormat(undefined, {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
+        dateStyle: "medium",
+        timeStyle: "short",
     }).format(date);
-}
-
-function formatAbsoluteTime(date: Date) {
-    return new Intl.DateTimeFormat(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-    }).format(date);
-}
-
-function formatRelativeTime(date: Date) {
-    const diffMs = date.getTime() - Date.now();
-    const future = diffMs > 0;
-    const diffMinutes = Math.max(0, Math.floor(Math.abs(diffMs) / 60000));
-
-    if (diffMinutes < 1) {
-        return "just now";
-    }
-
-    if (diffMinutes < 60) {
-        return formatRelativeUnit(diffMinutes, "minute", future);
-    }
-
-    const diffHours = Math.floor(diffMinutes / 60);
-
-    if (diffHours < 24) {
-        return formatRelativeUnit(diffHours, "hour", future);
-    }
-
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays < 7) {
-        return formatRelativeUnit(diffDays, "day", future);
-    }
-
-    const diffWeeks = Math.floor(diffDays / 7);
-    return formatRelativeUnit(diffWeeks, "week", future);
-}
-
-function normalizeProfileDetails(description: string) {
-    const normalized = description
-        .replace(/^Switched to\s+/i, "")
-        .replace(/^Added\s+/i, "")
-        .replace(/\s+profile\.?$/i, "")
-        .replace(/\.$/, "")
-        .trim();
-
-    return normalized.startsWith("Profile ->")
-        ? normalized
-        : `Profile -> ${normalized}`;
-}
-
-function formatLabelDetails(description: string) {
-    const normalized = description.replace(/\.$/, "");
-
-    if (/^Added\s+/i.test(normalized)) {
-        const label = normalized
-            .replace(/^Added\s+/i, "")
-            .replace(/\s+label.*$/i, "")
-            .trim();
-
-        return `Added label -> ${label}`;
-    }
-
-    if (/^Removed\s+/i.test(normalized)) {
-        const label = normalized
-            .replace(/^Removed\s+/i, "")
-            .replace(/\s+label.*$/i, "")
-            .trim();
-
-        return `Removed label -> ${label}`;
-    }
-
-    return normalized;
-}
-
-function getIconChipClassName(tone: ActivityTone) {
-    switch (tone) {
-        case "positive":
-            return "border-emerald-300 bg-emerald-50 text-emerald-700";
-        case "warning":
-            return "border-orange-300 bg-orange-50 text-orange-700";
-        default:
-            return "border-slate-300 bg-slate-50 text-slate-600";
-    }
-}
-
-function getActivityIcon(kind: ActivityKind, tone: ActivityTone): IconSvgElement {
-    switch (kind) {
-        case "profile":
-            return CpuSettingsIcon;
-        case "health":
-            return tone === "warning" ? AlertCircleIcon : CheckmarkCircle02Icon;
-        case "scheduling":
-            return Edit02Icon;
-        case "labels":
-            return LabelIcon;
-        case "inventory":
-            return FileEditIcon;
-        default:
-            return Edit02Icon;
-    }
-}
-
-function formatRelativeUnit(
-    value: number,
-    unit: "minute" | "hour" | "day" | "week",
-    future: boolean
-) {
-    const label = `${value} ${unit}${value === 1 ? "" : "s"}`;
-    return future ? `in ${label}` : `${label} ago`;
 }

@@ -1,15 +1,9 @@
 import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 
-import type { WorkspaceNode } from "@/features/nodes/types";
+import type { CreateNodeInput } from "@/api/nodes";
 import { Button } from "@/components/ui/button";
-import {
-    Field,
-    FieldDescription,
-    FieldError,
-    FieldGroup,
-    FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
     Sheet,
@@ -22,14 +16,12 @@ import {
 
 const addNodeSchema = z.object({
     name: z.string().trim().min(1, "Node name is required."),
-    labels: z.string(),
 });
 
 type AddNodeFormValues = z.infer<typeof addNodeSchema>;
 
 const defaultValues: AddNodeFormValues = {
     name: "",
-    labels: "",
 };
 
 function getFieldError<K extends keyof AddNodeFormValues>(
@@ -45,13 +37,6 @@ function getFieldError<K extends keyof AddNodeFormValues>(
     return undefined;
 }
 
-function parseLabels(labels: string) {
-    return labels
-        .split(",")
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-}
-
 export function AddNodeSheet({
     open,
     onOpenChange,
@@ -59,28 +44,16 @@ export function AddNodeSheet({
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onCreateNode: (node: WorkspaceNode) => void;
+    onCreateNode: (node: CreateNodeInput) => Promise<void>;
 }) {
     const form = useForm({
         defaultValues,
         validators: {
             onSubmit: addNodeSchema,
         },
-        onSubmit({ value }) {
-            onCreateNode({
-                id: crypto.randomUUID(),
+        async onSubmit({ value }) {
+            await onCreateNode({
                 name: value.name.trim(),
-                pool: "unassigned",
-                region: "unassigned",
-                provider: "Bare Metal",
-                gpuModel: "Not assigned",
-                gpuCount: 0,
-                cpuCores: 0,
-                memoryGb: 0,
-                status: "offline",
-                utilizationPct: 0,
-                lastHeartbeat: "Never",
-                labels: parseLabels(value.labels),
             });
 
             form.reset();
@@ -108,7 +81,8 @@ export function AddNodeSheet({
                         Add node
                     </SheetTitle>
                     <SheetDescription className="max-w-md text-sm leading-6">
-                        Add a node name and optional labels.
+                        Create a node record first. You can generate or regenerate the
+                        bootstrap token afterward from the node settings.
                     </SheetDescription>
                 </SheetHeader>
 
@@ -159,56 +133,6 @@ export function AddNodeSheet({
                                                     )
                                                 }
                                             />
-                                            <FieldError>
-                                                {fieldError ? String(fieldError) : null}
-                                            </FieldError>
-                                        </Field>
-                                    );
-                                }}
-                            </form.Field>
-
-                            <form.Field
-                                name="labels"
-                                validators={{
-                                    onBlur: ({ value }) =>
-                                        getFieldError("labels", value),
-                                }}
-                            >
-                                {(field) => {
-                                    const fieldError =
-                                        field.state.meta.isTouched ||
-                                        form.state.submissionAttempts > 0
-                                            ? field.state.meta.errors[0]
-                                            : undefined;
-
-                                    return (
-                                        <Field
-                                            className="gap-2"
-                                            data-invalid={fieldError ? true : undefined}
-                                        >
-                                            <FieldLabel htmlFor={field.name}>
-                                                Labels
-                                            </FieldLabel>
-                                            <Input
-                                                id={field.name}
-                                                name={field.name}
-                                                value={field.state.value}
-                                                placeholder="priority, research, canary"
-                                                className="h-11 px-4 text-sm md:text-sm"
-                                                aria-invalid={
-                                                    fieldError ? true : undefined
-                                                }
-                                                onBlur={field.handleBlur}
-                                                onChange={(event) =>
-                                                    field.handleChange(
-                                                        event.target.value
-                                                    )
-                                                }
-                                            />
-                                            <FieldDescription className="text-xs">
-                                                Separate labels with commas. Empty
-                                                values are ignored.
-                                            </FieldDescription>
                                             <FieldError>
                                                 {fieldError ? String(fieldError) : null}
                                             </FieldError>
