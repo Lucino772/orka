@@ -18,6 +18,7 @@ from orka_api.lifespan import make_lifespan
 from orka_api.routes.nodes import NodeApi
 from orka_api.routes.workspaces import WorkspaceApi
 from orka_api.services.jwt import JwtService
+from orka_api.services.nodes import NodeService
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -51,8 +52,9 @@ def create_app(
     engine = create_async_engine(database_url, pool_pre_ping=True)
     jwt_service = JwtService(node_jwt_signing_key)
 
-    auth_broker = AuthBroker(engine, jwt_service)
-    message_broker = MessageBroker(auth_broker)
+    node_service = NodeService()
+    auth_broker = AuthBroker(engine, jwt_service, node_service)
+    message_broker = MessageBroker(engine, auth_broker, node_service)
     sio_server = make_socketio_server(
         handlers={
             **auth_broker.handlers(),
@@ -61,7 +63,7 @@ def create_app(
     )
 
     workspace_api = WorkspaceApi(engine)
-    node_api = NodeApi(engine, jwt_service)
+    node_api = NodeApi(engine, jwt_service, node_service)
 
     http_app = Starlette(
         debug=False,
